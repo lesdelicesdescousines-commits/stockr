@@ -275,9 +275,12 @@ db_ref.on('value', (snap) => {
 });
 
 function saveProducts() {
+  // Envoyer par groupes de 50 pour éviter les timeouts Firebase
   const obj = {};
   db.products.forEach(p => obj[p.id] = p);
-  db_ref.child('products').set(obj);
+  db_ref.child('products').set(obj).catch(err => {
+    console.error('Firebase save error:', err);
+  });
 }
 function saveMovement(mvt) {
   db_ref.child('movements').child(mvt.id).set(mvt);
@@ -523,18 +526,18 @@ function importFile(input) {
     document.getElementById('importMsg').textContent = msg;
     document.getElementById('progressFill').style.width = pct+'%';
   };
-  const hideProgress = () => setTimeout(()=>document.getElementById('importProgress').style.display='none', 2000);
+  const hideProgress = () => setTimeout(()=>document.getElementById('importProgress').style.display='none', 3000);
 
-  showProgress('Lecture du fichier…', 20);
+  showProgress('Lecture du fichier…', 10);
   const reader = new FileReader();
 
-  reader.onload = (ev) => {
+  reader.onload = async (ev) => {
     try {
-      showProgress('Analyse des colonnes Shopify…', 50);
-      const wb = XLSX.read(ev.target.result, { type: 'string' });
+      showProgress('Analyse des colonnes Shopify…', 30);
+      const wb = XLSX.read(ev.target.result, { type: 'binary' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-      showProgress(`${rows.length} lignes trouvées…`, 70);
+      showProgress(`${rows.length} lignes trouvées…`, 50);
 
       const seen = new Set();
       const newProducts = [];
@@ -543,7 +546,7 @@ function importFile(input) {
         if (!name || seen.has(name) || name.startsWith('<')) continue;
         seen.add(name);
         newProducts.push({
-          id: Date.now().toString()+Math.random(),
+          id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2,6),
           name,
           category: '—',
           qty: parseFloat(r['Variant Inventory Qty']||r['Stock']||r['Quantité']||0)||0,
@@ -554,19 +557,31 @@ function importFile(input) {
       }
 
       if (!newProducts.length) { flash('Aucun produit trouvé.', false); hideProgress(); return; }
-      showProgress(`Envoi de ${newProducts.length} produits vers Firebase…`, 85);
-      db.products = [...db.products, ...newProducts];
-      saveProducts();
-      showProgress(`✓ ${newProducts.length} produits importés !`, 100);
+
+      // Envoyer par lots de 20 vers Firebase avec pause pour ne pas bloquer
+      const BATCH = 20;
+      const total = newProducts.length;
+
+      for (let i = 0; i < total; i += BATCH) {
+        const batch = newProducts.slice(i, i + BATCH);
+        const obj = {};
+        batch.forEach(p => obj[p.id] = p);
+        const pct = Math.round(((i + BATCH) / total) * 100);
+        showProgress(`Envoi ${Math.min(i+BATCH, total)}/${total} produits…`, pct);
+        await db_ref.child('products').update(obj);
+        await new Promise(r => setTimeout(r, 300));
+      }
+
+      showProgress(`✓ ${total} produits importés !`, 100);
       hideProgress();
-      flash(`${newProducts.length} produit(s) importé(s) ✓`);
+      flash(`${total} produit(s) importé(s) ✓`);
     } catch(e) {
       console.error(e);
-      flash('Erreur de lecture du fichier.', false);
+      flash('Erreur : ' + e.message, false);
       hideProgress();
     }
   };
-  reader.readAsText(file, 'UTF-8');
+  reader.readAsBinaryString(file);
   input.value = '';
 }
 
