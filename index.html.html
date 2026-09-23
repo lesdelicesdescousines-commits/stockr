@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STOCKR V2 — Minasbeauty</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--g:#16a34a;--r:#dc2626;--o:#ea580c;--b:#2563eb;--bg:#f8fafc;--card:#fff;--bdr:#e2e8f0;--txt:#0f172a;--mut:#64748b}
+body{background:var(--bg);color:var(--txt);font-family:'Inter',sans-serif;min-height:100vh}
+header{background:#fff;border-bottom:1px solid var(--bdr);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 1px 3px #0001}
+.logo{font-size:16px;font-weight:700;color:var(--g)}
+.sync{font-size:11px;color:var(--mut);display:flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:#94a3b8;flex-shrink:0}
+.dot.ok{background:var(--g);animation:pulse 2s infinite}
+.dot.err{background:var(--r)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+nav{display:flex;gap:3px;flex-wrap:wrap}
+nav button{background:transparent;border:1px solid transparent;color:var(--mut);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:500}
+nav button.active{background:#dcfce7;border-color:#bbf7d0;color:var(--g);font-weight:600}
+main{padding:14px;max-width:960px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 3px #0001}
+input,select{background:#f8fafc;border:1px solid var(--bdr);border-radius:6px;color:var(--txt);padding:8px 10px;font-size:13px;font-family:inherit;outline:none;width:100%}
+input:focus,select:focus{border-color:var(--g);background:#fff}
+.lbl{font-size:10px;color:var(--mut);font-weight:600;display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em}
+.btn{border-radius:6px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:600;padding:8px 14px;border:1px solid;white-space:nowrap}
+.btn-g{background:#dcfce7;border-color:#bbf7d0;color:#15803d}
+.btn-b{background:#dbeafe;border-color:#bfdbfe;color:#1d4ed8}
+.btn-o{background:#ffedd5;border-color:#fed7aa;color:#c2410c}
+.btn-r{background:#fee2e2;border-color:#fecaca;color:var(--r);padding:4px 8px;font-size:11px}
+.btn-y{background:#fef9c3;border-color:#fef08a;color:#a16207}
+.row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.f1{flex:1;min-width:90px}
+.f2{flex:2;min-width:130px}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:8px;font-size:13px;z-index:999;font-family:inherit;box-shadow:0 4px 16px #0002;display:none;font-weight:500;white-space:nowrap}
+.tok{background:#fff;border:1px solid #bbf7d0;color:#15803d}
+.terr{background:#fff;border:1px solid #fecaca;color:var(--r)}
+.view{display:none}
+.view.active{display:block}
+input[type=file]{display:none}
+.filelabel{display:inline-block;cursor:pointer}
+.pcard{background:var(--card);border-bottom:1px solid var(--bdr);padding:12px 14px}
+.pcard:last-child{border-bottom:none}
+.pimg{width:48px;height:48px;border-radius:7px;object-fit:cover;border:1px solid var(--bdr);flex-shrink:0;background:#f1f5f9}
+.pph{width:48px;height:48px;border-radius:7px;border:1px solid var(--bdr);flex-shrink:0;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:18px}
+.sm{flex:1;background:var(--bg);border-radius:7px;padding:7px;text-align:center;border:1px solid var(--bdr)}
+.sml{font-size:9px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;margin-bottom:1px}
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+@media(min-width:500px){.stat-grid{grid-template-columns:repeat(4,1fr)}}
+.sc{background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:14px;box-shadow:0 1px 3px #0001}
+.sv{font-size:28px;font-weight:700;line-height:1}
+.sl{font-size:10px;color:var(--mut);font-weight:600;margin-top:4px}
+.scan-zone{border:2px dashed var(--bdr);border-radius:10px;text-align:center;padding:24px 14px;background:var(--bg);transition:.3s;margin-bottom:12px}
+.scan-zone.on{border-color:#86efac;background:#f0fdf4}
+table{width:100%;border-collapse:collapse}
+th{font-size:10px;color:var(--mut);font-weight:600;text-align:left;padding:7px 10px;border-bottom:2px solid var(--bdr);background:#f8fafc}
+td{padding:9px 10px;font-size:12px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+.badge{border-radius:4px;font-size:10px;padding:2px 6px;font-weight:600}
+.bg{background:#dcfce7;color:#15803d}
+.bo{background:#ffedd5;color:#c2410c}
+.pb{background:#fef9c3;border-radius:5px;font-size:10px;padding:2px 6px;font-weight:600;color:#854d0e}
+.modal{display:none;position:fixed;inset:0;background:#0006;z-index:200;align-items:center;justify-content:center;padding:14px}
+.mbox{background:#fff;border-radius:12px;padding:20px;width:100%;max-width:400px;box-shadow:0 20px 50px #0003}
+.prog{background:var(--bdr);border-radius:99px;height:4px;margin-top:6px;overflow:hidden}
+.progf{background:var(--g);height:100%;border-radius:99px;transition:width .3s}
+@media(max-width:500px){nav button{padding:5px 7px;font-size:10px}}
+</style>
+</head>
+<body>
+<div id="toast"></div>
+
+<!-- Modal édition -->
+<div id="modal" class="modal">
+  <div class="mbox">
+    <div style="font-size:10px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Modifier le produit</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <img id="mimg" src="" style="width:44px;height:44px;border-radius:7px;object-fit:cover;border:1px solid var(--bdr);display:none">
+      <div style="font-weight:700;font-size:13px;line-height:1.3" id="mname"></div>
+    </div>
+    <div style="margin-bottom:10px"><label class="lbl">Code-barres — clique puis scanne</label><input type="text" id="mbarcode" data-scan="true" placeholder="Scanne ou tape"></div>
+    <div style="margin-bottom:10px"><label class="lbl">Quantité</label><input type="number" id="mqty" min="0" placeholder="0"></div>
+    <div style="margin-bottom:16px"><label class="lbl">Prix (DA)</label><input type="number" id="mprice" min="0" placeholder="0"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-g" style="flex:1" onclick="saveEdit()">✓ Sauvegarder</button>
+      <button class="btn" style="background:#f1f5f9;border-color:var(--bdr);color:var(--mut)" onclick="closeModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="logo">▸ STOCKR</div>
+    <div class="sync"><span class="dot" id="dot"></span><span id="slbl">Connexion…</span></div>
+  </div>
+  <nav>
+    <button class="active" onclick="show('scan')">📷 Scan</button>
+    <button onclick="show('dash')">📊 Tableau</button>
+    <button onclick="show('prod')">📦 Produits</button>
+    <button onclick="show('hist')">📋 Historique</button>
+  </nav>
+</header>
+
+<main>
+  <!-- SCAN -->
+  <div id="view-scan" class="view active">
+    <div style="font-size:18px;font-weight:700;margin-bottom:2px">Mode Douchette</div>
+    <div style="font-size:12px;color:var(--mut);margin-bottom:12px">Sync temps réel PC & téléphone</div>
+    <div class="card" style="border-color:#bbf7d0;background:#f0fdf4;margin-bottom:12px">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div id="stoggle" style="width:42px;height:23px;border-radius:11px;background:#dcfce7;border:1px solid #86efac;position:relative;cursor:pointer" onclick="toggleScan()">
+            <div id="sdot" style="width:15px;height:15px;border-radius:50%;background:var(--g);position:absolute;top:3px;left:23px;transition:.2s"></div>
+          </div>
+          <span id="slbl2" style="font-size:12px;color:var(--g);font-weight:700">SCAN ACTIF</span>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-b" id="bent" onclick="setST('entrée')" style="background:#dbeafe">↑ Entrée</button>
+          <button class="btn btn-o" id="bsor" onclick="setST('sortie')">↓ Sortie</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="lbl" style="margin:0">Qté :</span>
+          <input type="number" min="1" value="1" id="sqty" style="width:60px;text-align:center">
+        </div>
+      </div>
+    </div>
+    <div class="scan-zone on" id="szone">
+      <div style="font-size:36px;margin-bottom:6px">📷</div>
+      <div style="color:var(--g);font-weight:700;font-size:12px" id="sstatus">EN ATTENTE D'UN SCAN…</div>
+      <div style="color:var(--mut);font-size:11px;margin-top:4px">Scanne avec ta douchette</div>
+      <div style="margin-top:6px;color:var(--mut);font-size:10px">Mode : <span id="stlbl" style="color:var(--b);font-weight:700">ENTRÉE</span> · Qté : <span id="sqlbl" style="font-weight:700;color:var(--txt)">1</span></div>
+    </div>
+    <div class="card" id="lscan" style="display:none"><div style="font-size:10px;color:var(--mut);font-weight:600;text-transform:uppercase;margin-bottom:8px">Dernier scan</div><div id="lscontent"></div></div>
+    <div class="card" id="nowarn" style="display:none;border-color:#fef08a;background:#fefce8">
+      <div style="color:#a16207;font-size:11px;font-weight:700;margin-bottom:3px">⚠ Produits sans code-barres</div>
+      <div style="color:#854d0e;font-size:11px" id="nowarntext"></div>
+    </div>
+  </div>
+
+  <!-- TABLEAU -->
+  <div id="view-dash" class="view">
+    <div style="font-size:18px;font-weight:700;margin-bottom:12px">Tableau de bord</div>
+    <div class="stat-grid" id="stats"></div>
+    <div class="card">
+      <div style="font-size:10px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Mouvement manuel</div>
+      <div class="row">
+        <div class="f2"><label class="lbl">Produit</label><select id="mp"><option value="">— Choisir —</option></select></div>
+        <div class="f1"><label class="lbl">Type</label><select id="mt"><option value="entrée">↑ Entrée</option><option value="sortie">↓ Sortie</option></select></div>
+        <div class="f1"><label class="lbl">Qté</label><input type="number" min="1" value="1" id="mq"></div>
+        <div class="f2"><label class="lbl">Note</label><input type="text" placeholder="optionnel" id="mn"></div>
+        <button class="btn btn-b" onclick="addMvt()">Valider</button>
+      </div>
+    </div>
+    <div class="card"><div style="font-size:10px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">Derniers mouvements</div><div id="rmvt"></div></div>
+  </div>
+
+  <!-- PRODUITS -->
+  <div id="view-prod" class="view">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div style="font-size:18px;font-weight:700">Produits</div>
+        <div style="font-size:12px;color:var(--mut)" id="pcnt">0 article(s)</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <label class="filelabel btn btn-b">⬆ Importer CSV<input type="file" accept=".xlsx,.xls,.csv" onchange="importF(this)"></label>
+        <button class="btn btn-g" onclick="toggleAdd()">+ Nouveau</button>
+        <button class="btn btn-r" style="padding:8px 12px;font-size:12px" onclick="resetP()">🗑 Vider</button>
+      </div>
+    </div>
+    <div id="iprog" style="display:none" class="card">
+      <div style="font-size:12px;color:var(--b);font-weight:600" id="ipmsg">Import…</div>
+      <div class="prog"><div class="progf" id="ipf" style="width:0%"></div></div>
+    </div>
+    <div class="card" id="addform" style="display:none;border-color:#bbf7d0;background:#f0fdf4">
+      <div class="row">
+        <div class="f2"><label class="lbl">Nom *</label><input type="text" id="an" placeholder="Nom du produit"></div>
+        <div class="f1"><label class="lbl">Qté</label><input type="number" min="0" value="0" id="aq"></div>
+        <div class="f1"><label class="lbl">Prix DA</label><input type="number" min="0" value="0" id="ap"></div>
+        <div class="f2"><label class="lbl">Code-barres (scanne ici)</label><input type="text" id="ab" placeholder="Scanne ou tape" data-scan="true"></div>
+        <button class="btn btn-g" onclick="addP()">Créer</button>
+        <button class="btn" style="background:#f1f5f9;border-color:var(--bdr);color:var(--mut)" onclick="toggleAdd()">✕</button>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:10px"><input type="text" id="search" placeholder="🔍  Rechercher…" oninput="renderP()"></div>
+    <div class="card" style="padding:0;overflow:hidden"><div id="ptable"></div></div>
+  </div>
+
+  <!-- HISTORIQUE -->
+  <div id="view-hist" class="view">
+    <div style="font-size:18px;font-weight:700;margin-bottom:2px">Historique</div>
+    <div style="font-size:12px;color:var(--mut);margin-bottom:12px" id="hcnt">0 mouvement(s)</div>
+    <div class="card" style="padding:0;overflow:hidden"><div id="htable"></div></div>
+  </div>
+</main>
+
+<script>
+const FC = {
+  apiKey:"AIzaSyBpa_pz1Y5Xxq5vwgPoInBtQJnEdvvBsuo",
+  authDomain:"stock-mina.firebaseapp.com",
+  databaseURL:"https://stock-mina-default-rtdb.firebaseio.com",
+  projectId:"stock-mina"
+};
+firebase.initializeApp(FC);
+const DB = firebase.database().ref('stockr');
+
+let data = {products:[], movements:[]};
+let ready = false;
+
+DB.on('value', snap => {
+  const v = snap.val();
+  if(v){
+    data.products = Object.values(v.products||{});
+    data.movements = Object.values(v.movements||{}).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  } else { data={products:[],movements:[]}; }
+  ready=true;
+  document.getElementById('dot').className='dot ok';
+  document.getElementById('slbl').textContent=`Synchronisé (${data.products.length})`;
+  refresh();
+}, ()=>{
+  document.getElementById('dot').className='dot err';
+  document.getElementById('slbl').textContent='Hors ligne';
+});
+
+function saveP(){
+  const o={};
+  data.products.forEach(p=>o[p.id]=p);
+  DB.child('products').set(o);
+}
+function saveMvt(m){ DB.child('movements').child(m.id).set(m); }
+
+let tt;
+function flash(msg,ok=true){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=ok?'tok':'terr'; t.style.display='block';
+  clearTimeout(tt); tt=setTimeout(()=>t.style.display='none',3500);
+}
+
+let cv='scan';
+function show(v){
+  document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach((b,i)=>b.classList.toggle('active',['scan','dash','prod','hist'][i]===v));
+  document.getElementById('view-'+v).classList.add('active');
+  cv=v; refresh();
+}
+function refresh(){
+  if(cv==='dash') renderD();
+  if(cv==='prod') renderP();
+  if(cv==='hist') renderH();
+  if(cv==='scan') renderW();
+}
+
+// SCAN
+let son=true, stype='entrée', sbuf='', sts=0, stimer;
+document.addEventListener('keydown', e=>{
+  if(document.getElementById('modal').style.display==='flex'){if(e.key==='Enter')saveEdit();return;}
+  if(!son||cv!=='scan') return;
+  const tag=document.activeElement?.tagName;
+  const isf=document.activeElement?.dataset?.scan==='true';
+  if((tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')&&!isf) return;
+  const now=Date.now();
+  if(e.key==='Enter'){if(sbuf.length>=3)doScan(sbuf.trim());sbuf='';clearTimeout(stimer);return;}
+  if(e.key.length===1){
+    if(sbuf.length>0&&now-sts>80)sbuf='';
+    sbuf+=e.key;sts=now;clearTimeout(stimer);
+    stimer=setTimeout(()=>{sbuf='';},200);
+  }
+});
+
+function doScan(bc){
+  const qty=Math.max(1,parseInt(document.getElementById('sqty').value)||1);
+  const p=data.products.find(x=>x.barcode===bc);
+  if(p){
+    const d=stype==='entrée'?qty:-qty;
+    if(p.qty+d<0){showLS('err',{bc,msg:'Stock insuffisant!'});flash('Stock insuffisant',false);return;}
+    p.qty+=d; saveP();
+    const m={id:Date.now().toString(),productId:p.id,productName:p.name,type:stype,qty,note:'scan',date:new Date().toISOString()};
+    saveMvt(m); showLS('ok',{bc,p,qty}); flash(`${stype==='entrée'?'↑':'↓'} ${p.name} ×${qty}`);
+  } else { showLS('unk',{bc}); flash('Code inconnu',false); }
+}
+
+function showLS(type,d){
+  const c=document.getElementById('lscan'), x=document.getElementById('lscontent');
+  c.style.display='block';
+  if(type==='err'){c.style.borderColor='#fecaca';c.style.background='#fff5f5';x.innerHTML=`<div style="color:var(--r);font-weight:600">⚠ ${d.msg}</div>`;}
+  else if(type==='unk'){c.style.borderColor='#fecaca';c.style.background='#fff5f5';x.innerHTML=`<div style="color:var(--r);font-weight:700;margin-bottom:8px">Code inconnu : <code style="background:#fee2e2;padding:1px 5px;border-radius:3px">${d.bc}</code></div><div style="font-size:12px">Va dans <span style="color:var(--g);cursor:pointer;text-decoration:underline;font-weight:600" onclick="show('prod')">📦 Produits →</span></div>`;}
+  else{
+    c.style.borderColor='#bbf7d0';c.style.background='#f0fdf4';
+    const img=d.p.image?`<img src="${esc(d.p.image)}" style="width:44px;height:44px;border-radius:7px;object-fit:cover;border:1px solid var(--bdr);flex-shrink:0">`:'';
+    const prix=d.p.price?`<div style="font-size:11px;color:var(--mut)">${d.p.price.toLocaleString()} DA</div>`:'';
+    x.innerHTML=`<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:10px;flex:2">${img}<div><div style="font-size:14px;font-weight:700;margin-bottom:2px">${esc(d.p.name)}</div>${prix}</div></div>
+      <span class="badge ${stype==='entrée'?'bg':'bo'}">${stype==='entrée'?'↑':'↓'} ${stype} ×${d.qty}</span>
+      <div style="text-align:right"><div style="font-size:26px;font-weight:700;color:var(--g)">${d.p.qty}</div><div style="font-size:9px;color:var(--mut);text-transform:uppercase">en stock</div></div>
+    </div>`;
+  }
+}
+
+function toggleScan(){
+  son=!son;
+  const t=document.getElementById('stoggle'),dot=document.getElementById('sdot');
+  t.style.background=son?'#dcfce7':'#e2e8f0';t.style.borderColor=son?'#86efac':'#cbd5e1';
+  dot.style.background=son?'var(--g)':'#94a3b8';dot.style.left=son?'23px':'3px';
+  document.getElementById('slbl2').textContent=son?'SCAN ACTIF':'INACTIF';
+  document.getElementById('slbl2').style.color=son?'var(--g)':'var(--mut)';
+  document.getElementById('szone').classList.toggle('on',son);
+  document.getElementById('sstatus').textContent=son?"EN ATTENTE D'UN SCAN…":'Scan désactivé';
+}
+function setST(t){
+  stype=t;
+  document.getElementById('bent').style.background=t==='entrée'?'#dbeafe':'transparent';
+  document.getElementById('bsor').style.background=t==='sortie'?'#ffedd5':'transparent';
+  document.getElementById('stlbl').style.color=t==='entrée'?'var(--b)':'var(--o)';
+  document.getElementById('stlbl').textContent=t.toUpperCase();
+}
+document.getElementById('sqty').addEventListener('input',function(){document.getElementById('sqlbl').textContent=this.value||'1';});
+function renderW(){
+  const n=data.products.filter(p=>!p.barcode).length;
+  const w=document.getElementById('nowarn');
+  if(n>0){w.style.display='block';document.getElementById('nowarntext').innerHTML=`${n} produit(s) sans code-barres. <span style="color:var(--g);cursor:pointer;text-decoration:underline;font-weight:600" onclick="show('prod')">Aller dans Produits →</span>`;}
+  else w.style.display='none';
+}
+
+// TABLEAU
+function renderD(){
+  const ti=data.movements.filter(m=>m.type==='entrée').reduce((s,m)=>s+m.qty,0);
+  const to=data.movements.filter(m=>m.type==='sortie').reduce((s,m)=>s+m.qty,0);
+  const ls=data.products.filter(p=>p.qty<=5).length;
+  document.getElementById('stats').innerHTML=[
+    {v:data.products.length,l:'Produits',c:'#15803d',b:'#bbf7d0'},
+    {v:ti,l:'Entrées',c:'#1d4ed8',b:'#bfdbfe'},
+    {v:to,l:'Sorties',c:'#c2410c',b:'#fed7aa'},
+    {v:ls,l:'Stock Bas',c:'#a16207',b:'#fef08a'}
+  ].map(s=>`<div class="sc" style="border-color:${s.b}"><div class="sv" style="color:${s.c}">${s.v}</div><div class="sl">${s.l}</div></div>`).join('');
+  const sel=document.getElementById('mp'),cur=sel.value;
+  sel.innerHTML='<option value="">— Choisir —</option>'+data.products.map(p=>`<option value="${p.id}"${p.id===cur?' selected':''}>${esc(p.name)}</option>`).join('');
+  const div=document.getElementById('rmvt');
+  if(!data.movements.length){div.innerHTML='<div style="color:var(--mut);text-align:center;padding:16px;font-size:12px">Aucun mouvement</div>';return;}
+  div.innerHTML=`<table><thead><tr><th>Date</th><th>Produit</th><th>Type</th><th>Qté</th></tr></thead><tbody>
+  ${data.movements.slice(0,10).map(m=>`<tr>
+    <td style="color:var(--mut);font-size:10px">${fd(m.date)}</td>
+    <td style="font-weight:500;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.productName)}</td>
+    <td><span class="badge ${m.type==='entrée'?'bg':'bo'}">${m.type==='entrée'?'↑':'↓'}</span></td>
+    <td style="font-weight:700;color:${m.type==='entrée'?'#15803d':'#c2410c'}">${m.type==='entrée'?'+':'-'}${m.qty}</td>
+  </tr>`).join('')}</tbody></table>`;
+}
+function addMvt(){
+  const id=document.getElementById('mp').value,type=document.getElementById('mt').value;
+  const qty=parseInt(document.getElementById('mq').value)||0,note=document.getElementById('mn').value.trim();
+  if(!id||qty<=0){flash('Produit et quantité requis',false);return;}
+  const p=data.products.find(x=>x.id===id);if(!p)return;
+  const d=type==='entrée'?qty:-qty;
+  if(p.qty+d<0){flash('Stock insuffisant',false);return;}
+  p.qty+=d;saveP();
+  const m={id:Date.now().toString(),productId:p.id,productName:p.name,type,qty,note,date:new Date().toISOString()};
+  saveMvt(m);
+  document.getElementById('mq').value='1';document.getElementById('mn').value='';
+  flash('Mouvement enregistré ✓');
+}
+
+// PRODUITS
+let showAdd=false;
+function toggleAdd(){showAdd=!showAdd;document.getElementById('addform').style.display=showAdd?'block':'none';}
+function addP(){
+  const name=document.getElementById('an').value.trim();
+  if(!name){flash('Nom requis',false);return;}
+  const p={id:Date.now().toString()+Math.random(),name,category:'—',qty:parseFloat(document.getElementById('aq').value)||0,price:parseFloat(document.getElementById('ap').value)||0,unit:'unité',barcode:document.getElementById('ab').value.trim()||null,image:null,createdAt:new Date().toISOString()};
+  data.products.push(p);saveP();
+  ['an','ab'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('aq').value='0';document.getElementById('ap').value='0';
+  toggleAdd();flash('Produit ajouté ✓');
+}
+function delP(id){if(!confirm('Supprimer ?'))return;data.products=data.products.filter(p=>p.id!==id);saveP();flash('Supprimé.');}
+function resetP(){if(!confirm(`Supprimer les ${data.products.length} produits ?`))return;data.products=[];saveP();flash('Vidé.');}
+
+function renderP(){
+  const q=(document.getElementById('search').value||'').toLowerCase();
+  const f=data.products.filter(p=>p.name.toLowerCase().includes(q)||(p.barcode||'').includes(q));
+  document.getElementById('pcnt').textContent=`${data.products.length} article(s)`;
+  const div=document.getElementById('ptable');
+  if(!f.length){div.innerHTML='<div style="color:var(--mut);text-align:center;padding:24px;font-size:12px">Aucun produit</div>';return;}
+  div.innerHTML=f.map(p=>{
+    const img=p.image?`<img src="${p.image}" class="pimg" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`+`<div class="pph" style="display:none">🧴</div>`:`<div class="pph">🧴</div>`;
+    const qc=p.qty<=0?'var(--r)':p.qty<=5?'#d97706':'var(--g)';
+    return `<div class="pcard">
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px">
+        ${img}
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600;line-height:1.4;margin-bottom:6px">${esc(p.name)}</div>
+          <div style="display:flex;gap:5px">
+            <button class="btn btn-b" style="padding:4px 10px;font-size:11px" onclick="openEdit('${p.id}')">✏️ Modifier</button>
+            <button class="btn btn-r" onclick="delP('${p.id}')">✕</button>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <div class="sm"><div class="sml">Stock</div><div style="font-size:18px;font-weight:700;color:${qc}">${p.qty}</div></div>
+        <div class="sm"><div class="sml">Prix</div><div style="font-size:12px;font-weight:600">${p.price?p.price.toLocaleString()+' DA':'<span style="color:#fbbf24">—</span>'}</div></div>
+        <div class="sm"><div class="sml">Code</div><div style="font-size:10px;font-family:monospace;color:var(--mut)">${p.barcode||'<span style="color:#fbbf24">—</span>'}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// EDIT
+let eid=null;
+function openEdit(id){
+  const p=data.products.find(x=>x.id===id);if(!p)return;
+  eid=id;
+  document.getElementById('mname').textContent=p.name;
+  const mi=document.getElementById('mimg');
+  if(p.image){mi.src=p.image;mi.style.display='block';}else mi.style.display='none';
+  document.getElementById('mbarcode').value=p.barcode||'';
+  document.getElementById('mqty').value=p.qty||0;
+  document.getElementById('mprice').value=p.price||'';
+  document.getElementById('modal').style.display='flex';
+  setTimeout(()=>document.getElementById('mbarcode').focus(),100);
+}
+function saveEdit(){
+  const p=data.products.find(x=>x.id===eid);if(!p)return;
+  p.barcode=document.getElementById('mbarcode').value.trim()||null;
+  p.qty=parseFloat(document.getElementById('mqty').value)||0;
+  p.price=parseFloat(document.getElementById('mprice').value)||0;
+  saveP();closeModal();flash('Mis à jour ✓');
+}
+function closeModal(){document.getElementById('modal').style.display='none';eid=null;}
+
+// IMPORT
+async function importF(input){
+  const file=input.files[0];if(!file)return;
+  const sp=(m,p)=>{document.getElementById('iprog').style.display='block';document.getElementById('ipmsg').textContent=m;document.getElementById('ipf').style.width=p+'%';};
+  const hp=()=>setTimeout(()=>document.getElementById('iprog').style.display='none',2000);
+  sp('Lecture…',20);
+  const reader=new FileReader();
+  reader.onload=async ev=>{
+    try{
+      sp('Analyse…',50);
+      const wb=XLSX.read(ev.target.result,{type:'binary'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      const seen=new Set(data.products.map(p=>p.name));
+      const np=[];
+      for(const r of rows){
+        const name=String(r['Title']||r['Nom']||r['nom']||r['Produit']||'').trim();
+        if(!name||seen.has(name)||name.startsWith('<'))continue;
+        seen.add(name);
+        np.push({id:Date.now().toString()+Math.random(),name,category:'—',qty:parseFloat(r['Variant Inventory Qty']||r['Stock']||0)||0,price:0,unit:'unité',barcode:String(r['Variant Barcode']||r['Variant Barcodes']||r['Code-barres']||'').trim()||null,image:String(r['Image Src']||r['image']||'').trim()||null,createdAt:new Date().toISOString()});
+      }
+      if(!np.length){flash('Aucun nouveau produit.',false);hp();return;}
+      sp(`Envoi de ${np.length} produits…`,70);
+      // Envoyer un par un
+      for(let i=0;i<np.length;i++){
+        const p=np[i];
+        try{await DB.child('products').child(p.id).set(p);}catch(e){}
+        sp(`Sync ${i+1}/${np.length}…`,70+Math.round((i/np.length)*28));
+        await new Promise(r=>setTimeout(r,200));
+      }
+      sp('✓ Terminé !',100);hp();
+      flash(`${np.length} produit(s) ajouté(s) ✓`);
+    }catch(e){flash('Erreur lecture',false);hp();}
+  };
+  reader.readAsBinaryString(file);
+  input.value='';
+}
+
+// HISTORIQUE
+function renderH(){
+  document.getElementById('hcnt').textContent=`${data.movements.length} mouvement(s)`;
+  const div=document.getElementById('htable');
+  if(!data.movements.length){div.innerHTML='<div style="color:var(--mut);text-align:center;padding:24px;font-size:12px">Aucun mouvement</div>';return;}
+  div.innerHTML=`<table><thead><tr><th style="padding-left:14px">Date</th><th>Produit</th><th>Type</th><th>Qté</th><th>Note</th></tr></thead><tbody>
+  ${data.movements.map(m=>`<tr>
+    <td style="color:var(--mut);font-size:10px;padding-left:14px">${fd(m.date)}</td>
+    <td style="font-weight:500;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.productName)}</td>
+    <td><span class="badge ${m.type==='entrée'?'bg':'bo'}">${m.type==='entrée'?'↑':'↓'}</span></td>
+    <td style="font-weight:700;color:${m.type==='entrée'?'#15803d':'#c2410c'}">${m.type==='entrée'?'+':'-'}${m.qty}</td>
+    <td style="color:var(--mut);font-size:10px">${esc(m.note||'—')}</td>
+  </tr>`).join('')}</tbody></table>`;
+}
+
+function fd(iso){return new Date(iso).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+</script>
+</body>
+</html>
